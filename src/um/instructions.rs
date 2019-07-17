@@ -1,6 +1,6 @@
-use std::marker::PhantomData;
-use super::machine::Word;
 use super::errors::UmError;
+use super::machine::Word;
+use std::marker::PhantomData;
 
 /// Identifies an input register by index.
 /// `T` hints the type of the value stored in said register.
@@ -10,11 +10,11 @@ pub struct In<T> {
     phantom: PhantomData<T>,
 }
 
-impl <T> In<T> {
+impl<T> In<T> {
     fn new(idx: u8) -> In<T> {
         In {
             idx: idx,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 }
@@ -74,17 +74,17 @@ pub enum Instruction {
     Multiply {
         dest: Out,
         x: In<Word>,
-        y: In<Word>
+        y: In<Word>,
     },
     Divide {
         dest: Out,
         x: In<Word>,
-        y: In<Word>
+        y: In<Word>,
     },
     Nand {
         dest: Out,
         x: In<Word>,
-        y: In<Word>
+        y: In<Word>,
     },
     Halt,
     Allocate {
@@ -92,13 +92,13 @@ pub enum Instruction {
         result: Out,
     },
     Abandon {
-        which: In<ArrayId>
+        which: In<ArrayId>,
     },
     Output {
-        val: In<Word>
+        val: In<Word>,
     },
     Input {
-        dest: Out
+        dest: Out,
     },
     LoadProgram {
         from: In<ArrayId>,
@@ -106,8 +106,8 @@ pub enum Instruction {
     },
     LoadRegister {
         dest: Out,
-        val: Word
-    }
+        val: Word,
+    },
 }
 
 struct Abc {
@@ -117,7 +117,6 @@ struct Abc {
 }
 
 impl Instruction {
-
     fn parse_standard_abc(word: Word) -> Abc {
         Abc {
             a: ((word >> 6) & 7) as u8,
@@ -134,57 +133,57 @@ impl Instruction {
                 Ok(Instruction::ConditionalMove {
                     dest: Out::new(abc.a),
                     src: In::new(abc.b),
-                    test: In::new(abc.c)
+                    test: In::new(abc.c),
                 })
-            },
+            }
             1 => {
                 let abc = Instruction::parse_standard_abc(word);
                 Ok(Instruction::ArrayIndex {
                     dest: Out::new(abc.a),
                     offset: In::new(abc.c),
-                    array: In::new(abc.b)
+                    array: In::new(abc.b),
                 })
-            },
+            }
             2 => {
                 let abc = Instruction::parse_standard_abc(word);
                 Ok(Instruction::ArrayAmend {
                     array: In::new(abc.a),
                     offset: In::new(abc.b),
-                    val: In::new(abc.c)
+                    val: In::new(abc.c),
                 })
-            },
+            }
             3 => {
                 let abc = Instruction::parse_standard_abc(word);
                 Ok(Instruction::Add {
                     dest: Out::new(abc.a),
                     x: In::new(abc.b),
-                    y: In::new(abc.c)
+                    y: In::new(abc.c),
                 })
-            },
+            }
             4 => {
                 let abc = Instruction::parse_standard_abc(word);
                 Ok(Instruction::Multiply {
                     dest: Out::new(abc.a),
                     x: In::new(abc.b),
-                    y: In::new(abc.c)
+                    y: In::new(abc.c),
                 })
-            },
+            }
             5 => {
                 let abc = Instruction::parse_standard_abc(word);
                 Ok(Instruction::Divide {
                     dest: Out::new(abc.a),
                     x: In::new(abc.b),
-                    y: In::new(abc.c)
+                    y: In::new(abc.c),
                 })
-            },
+            }
             6 => {
                 let abc = Instruction::parse_standard_abc(word);
                 Ok(Instruction::Nand {
                     dest: Out::new(abc.a),
                     x: In::new(abc.b),
-                    y: In::new(abc.c)
+                    y: In::new(abc.c),
                 })
-            },
+            }
             7 => Ok(Instruction::Halt),
             8 => {
                 let abc = Instruction::parse_standard_abc(word);
@@ -192,26 +191,32 @@ impl Instruction {
                     size: In::new(abc.c),
                     result: Out::new(abc.b),
                 })
-            },
+            }
             9 => {
                 let abc = Instruction::parse_standard_abc(word);
-                Ok(Instruction::Abandon { which: In::new(abc.c) })
-            },
+                Ok(Instruction::Abandon {
+                    which: In::new(abc.c),
+                })
+            }
             10 => {
                 let abc = Instruction::parse_standard_abc(word);
-                Ok(Instruction::Output { val: In::new(abc.c) })
-            },
+                Ok(Instruction::Output {
+                    val: In::new(abc.c),
+                })
+            }
             11 => {
                 let abc = Instruction::parse_standard_abc(word);
-                Ok(Instruction::Input { dest: Out::new(abc.c) })
-            },
+                Ok(Instruction::Input {
+                    dest: Out::new(abc.c),
+                })
+            }
             12 => {
                 let abc = Instruction::parse_standard_abc(word);
                 Ok(Instruction::LoadProgram {
                     from: In::new(abc.b),
                     finger: In::new(abc.c),
                 })
-            },
+            }
             13 => {
                 let a = ((word >> 25) & 7) as u8;
                 let value = word & ((1 << 25) - 1);
@@ -219,8 +224,8 @@ impl Instruction {
                     dest: Out::new(a),
                     val: value,
                 })
-            },
-            _ => Err(UmError::UnknownInstruction { inst: word })
+            }
+            _ => Err(UmError::UnknownInstruction { inst: word }),
         }
     }
 }

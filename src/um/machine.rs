@@ -1,7 +1,7 @@
+use super::errors;
+use super::instructions;
 use std::collections::HashMap;
 use std::io::Read;
-use super::instructions;
-use super::errors;
 
 /// A platter in the universal machine; a unit of storage.
 pub type Word = u32;
@@ -16,7 +16,7 @@ pub struct Machine {
 
 enum Continue {
     Yes,
-    No
+    No,
 }
 
 impl Machine {
@@ -88,7 +88,11 @@ impl Machine {
         }
     }
 
-    fn read_array(&self, array_id: instructions::ArrayId, offset: instructions::Offset) -> Result<Word, errors::UmError> {
+    fn read_array(
+        &self,
+        array_id: instructions::ArrayId,
+        offset: instructions::Offset,
+    ) -> Result<Word, errors::UmError> {
         if array_id.0 == 0 {
             if (offset.0 as usize) < self.program.len() {
                 Ok(self.program[offset.0 as usize])
@@ -103,15 +107,18 @@ impl Machine {
                     } else {
                         Err(errors::UmError::ArrayOutOfRange)
                     }
-                },
-                None => {
-                    Err(errors::UmError::InvalidArrayId)
                 }
+                None => Err(errors::UmError::InvalidArrayId),
             }
         }
     }
 
-    fn write_array(&mut self, array_id: instructions::ArrayId, offset: instructions::Offset, val: Word) -> Result<(), errors::UmError> {
+    fn write_array(
+        &mut self,
+        array_id: instructions::ArrayId,
+        offset: instructions::Offset,
+        val: Word,
+    ) -> Result<(), errors::UmError> {
         if array_id.0 == 0 {
             if (offset.0 as usize) < self.program.len() {
                 self.program[offset.0 as usize] = val;
@@ -128,15 +135,16 @@ impl Machine {
                     } else {
                         Err(errors::UmError::ArrayOutOfRange)
                     }
-                },
-                None => {
-                    Err(errors::UmError::InvalidArrayId)
                 }
+                None => Err(errors::UmError::InvalidArrayId),
             }
         }
     }
 
-    fn execute_instruction(&mut self, inst: instructions::Instruction) -> Result<Continue, errors::UmError> {
+    fn execute_instruction(
+        &mut self,
+        inst: instructions::Instruction,
+    ) -> Result<Continue, errors::UmError> {
         use instructions::Instruction;
 
         match inst {
@@ -146,35 +154,39 @@ impl Machine {
                     self.set_register(dest, self.read_register(src)?)?;
                 }
                 Ok(Continue::Yes)
-            },
-            Instruction::ArrayIndex { dest, offset, array } => {
+            }
+            Instruction::ArrayIndex {
+                dest,
+                offset,
+                array,
+            } => {
                 let offset_val = self.read_register(offset)?;
                 let array_id = self.read_register(array)?;
                 let val = self.read_array(array_id, offset_val)?;
                 self.set_register(dest, val)?;
                 Ok(Continue::Yes)
-            },
+            }
             Instruction::ArrayAmend { array, offset, val } => {
                 let offset_val = self.read_register(offset)?;
                 let array_id = self.read_register(array)?;
                 let val_val = self.read_register(val)?;
                 self.write_array(array_id, offset_val, val_val)?;
                 Ok(Continue::Yes)
-            },
+            }
             Instruction::Add { dest, x, y } => {
                 let x_val = self.read_register(x)?;
                 let y_val = self.read_register(y)?;
                 let result = x_val.wrapping_add(y_val);
                 self.set_register(dest, result)?;
                 Ok(Continue::Yes)
-            },
+            }
             Instruction::Multiply { dest, x, y } => {
                 let x_val = self.read_register(x)?;
                 let y_val = self.read_register(y)?;
                 let result = x_val.wrapping_mul(y_val);
                 self.set_register(dest, result)?;
                 Ok(Continue::Yes)
-            },
+            }
             Instruction::Divide { dest, x, y } => {
                 let x_val = self.read_register(x)?;
                 let y_val = self.read_register(y)?;
@@ -185,14 +197,14 @@ impl Machine {
                     self.set_register(dest, result)?;
                     Ok(Continue::Yes)
                 }
-            },
+            }
             Instruction::Nand { dest, x, y } => {
                 let x_val = self.read_register(x)?;
                 let y_val = self.read_register(y)?;
                 let result = !(x_val & y_val);
                 self.set_register(dest, result)?;
                 Ok(Continue::Yes)
-            },
+            }
             Instruction::Halt => Ok(Continue::No),
             Instruction::Allocate { size, result } => {
                 let size_val = self.read_register(size)?;
@@ -204,7 +216,7 @@ impl Machine {
                     self.next_array_id += 1;
                 }
                 Ok(Continue::Yes)
-            },
+            }
             Instruction::Abandon { which } => {
                 let which_val = self.read_register(which)?;
                 if which_val.0 == 0 {
@@ -212,10 +224,10 @@ impl Machine {
                 } else {
                     match self.data_arrays.remove(&which_val.0) {
                         Some(_) => Ok(Continue::Yes),
-                        None => Err(errors::UmError::InvalidArrayId)
+                        None => Err(errors::UmError::InvalidArrayId),
                     }
                 }
-            },
+            }
             Instruction::Output { val } => {
                 let val_val = self.read_register(val)?;
                 if val_val <= 255 {
@@ -224,7 +236,7 @@ impl Machine {
                 } else {
                     Err(errors::UmError::InvalidOutput { val: val_val })
                 }
-            },
+            }
             Instruction::Input { dest } => {
                 let input: Option<i32> = std::io::stdin()
                     .bytes()
@@ -241,25 +253,28 @@ impl Machine {
                         Ok(Continue::Yes)
                     }
                 }
-            },
+            }
             Instruction::LoadProgram { from, finger } => {
                 let array_id = self.read_register(from)?;
                 let finger_val = self.read_register(finger)?;
-                match self.data_arrays.get_mut(&array_id.0) {
-                    Some(array) => {
-                        self.program = array.clone();
-                        self.finger = finger_val;
-                        Ok(Continue::Yes)
-                    },
-                    None => {
-                        Err(errors::UmError::InvalidArrayId)
+                if array_id.0 == 0 {
+                    self.finger = finger_val;
+                    Ok(Continue::Yes)
+                } else {
+                    match self.data_arrays.get_mut(&array_id.0) {
+                        Some(array) => {
+                            self.program = array.clone();
+                            self.finger = finger_val;
+                            Ok(Continue::Yes)
+                        }
+                        None => Err(errors::UmError::InvalidArrayId),
                     }
                 }
-            },
+            }
             Instruction::LoadRegister { dest, val } => {
                 self.set_register(dest, val)?;
                 Ok(Continue::Yes)
-            },
+            }
         }
     }
 
@@ -270,16 +285,12 @@ impl Machine {
             match self.fetch_instruction() {
                 Some(word) => {
                     let inst = instructions::Instruction::decode_from(word)?;
-                    println!("{:?}", inst);
                     let cont = self.execute_instruction(inst)?;
                     match cont {
-                        Continue::Yes => {
-                        },
-                        Continue::No => {
-                            return Ok(())
-                        }
+                        Continue::Yes => {}
+                        Continue::No => return Ok(()),
                     }
-                },
+                }
                 None => {
                     return Ok(());
                 }

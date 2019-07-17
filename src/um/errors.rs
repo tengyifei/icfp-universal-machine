@@ -1,6 +1,6 @@
+use super::machine::Word;
 use std::error::Error;
 use std::fmt;
-use super::machine::Word;
 
 #[derive(Debug)]
 pub enum UmError {
@@ -20,5 +20,4 @@ impl fmt::Display for UmError {
     }
 }
 
-impl Error for UmError {
-}
+impl Error for UmError {}
